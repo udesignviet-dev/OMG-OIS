@@ -117,8 +117,8 @@ struct MapScreen: View {
                 locationManager.request()
                 await syncEngine.sync()
             }
-            .onChange(of: locationManager.coordinate?.latitude) { _, _ in
-                if let coordinate = locationManager.coordinate {
+            .onReceive(locationManager.$coordinate) { coordinate in
+                if let coordinate {
                     centerCoordinate = coordinate
                 }
             }
