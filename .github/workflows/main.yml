@@ -48,19 +48,41 @@ jobs:
       - name: Generate Xcode project
         run: xcodegen generate
 
-      - name: Build for iOS Simulator (unsigned)
+            - name: Build for iOS Simulator (unsigned)
         run: |
-          set -o pipefail
+          set -euo pipefail
+
           xcodebuild \
             -project MuleHazardMap.xcodeproj \
             -scheme MuleHazardMap \
             -configuration Debug \
-            -destination 'generic/platform=iOS Simulator' \
+            -sdk iphonesimulator \
+            -destination 'platform=iOS Simulator,name=iPhone 16,OS=latest' \
             -derivedDataPath build \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
             CODE_SIGNING_ALLOWED=NO \
-            build | xcpretty || true
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            build
+
+          echo "=== APP FILES ==="
+          find build -name "*.app"
+
+          APP_PATH=$(find build -name "MuleHazardMap.app" | head -1)
+
+          if [ -z "$APP_PATH" ]; then
+            echo "❌ Không tìm thấy MuleHazardMap.app"
+            exit 1
+          fi
+
+          echo "APP = $APP_PATH"
+
+          echo "=== CONTENT ==="
+          ls -la "$APP_PATH"
+
+          if [ ! -f "$APP_PATH/Info.plist" ]; then
+            echo "❌ Info.plist missing"
+            exit 1
+          fi
           # Verify the .app was produced
           find build -name "*.app" -maxdepth 6 -print
           test -n "$(find build -name '*.app' -maxdepth 6 -print -quit)"
