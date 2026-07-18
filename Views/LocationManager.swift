@@ -2,7 +2,8 @@ import Foundation
 import CoreLocation
 
 @MainActor
-final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelegate {
+final class LocationManager: NSObject, ObservableObject {
+
     @Published var coordinate: CLLocationCoordinate2D?
     @Published var authorizationStatus: CLAuthorizationStatus = .notDetermined
 
@@ -18,16 +19,40 @@ final class LocationManager: NSObject, ObservableObject, CLLocationManagerDelega
         manager.requestWhenInUseAuthorization()
         manager.startUpdatingLocation()
     }
+}
 
-    func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
-        authorizationStatus = manager.authorizationStatus
-        if authorizationStatus == .authorizedWhenInUse || authorizationStatus == .authorizedAlways {
-            manager.startUpdatingLocation()
+extension LocationManager: CLLocationManagerDelegate {
+
+    nonisolated func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
+        let status = manager.authorizationStatus
+
+        Task { @MainActor in
+            self.authorizationStatus = status
+
+            if status == .authorizedAlways ||
+               status == .authorizedWhenInUse {
+                self.manager.startUpdatingLocation()
+            }
         }
     }
 
-    nonisolated func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        guard let coordinate = locations.last?.coordinate else { return }
-        Task { @MainActor in self.coordinate = coordinate }
+    nonisolated func locationManager(
+        _ manager: CLLocationManager,
+        didUpdateLocations locations: [CLLocation]
+    ) {
+        guard let coordinate = locations.last?.coordinate else {
+            return
+        }
+
+        Task { @MainActor in
+            self.coordinate = coordinate
+        }
+    }
+
+    nonisolated func locationManager(
+        _ manager: CLLocationManager,
+        didFailWithError error: Error
+    ) {
+        print("Location error:", error.localizedDescription)
     }
 }
